@@ -1,0 +1,10 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Google Sans Flex Logo", "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --color-primary: #1352bf;
+  --color-primary-dark: #0f4199;
+  --color-primary-light: #e8effa;
+  --color-primary-50: #d1e0f5;
+  --color-surface: #F8FAFC;
+}
