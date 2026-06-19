@@ -4,6 +4,59 @@ import { Helmet } from 'react-helmet-async'
 import { storeTikTokAuth } from '../lib/tiktok'
 import type { TikTokUser } from '../lib/tiktok'
 
+async function exchangeCode(code: string, redirectUri: string): Promise<TikTokUser | null> {
+  // Try Vercel API route first
+  try {
+    const res = await fetch('/api/tiktok/exchange', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, redirectUri }),
+    })
+    const data = await res.json()
+    if (!data.error && data.username) return data as TikTokUser
+  } catch {
+    // API not available (local dev), try direct exchange
+  }
+
+  // Fallback: direct exchange from browser (local dev with VITE_TIKTOK_CLIENT_SECRET)
+  const clientKey = import.meta.env.VITE_TIKTOK_CLIENT_KEY
+  const clientSecret = import.meta.env.VITE_TIKTOK_CLIENT_SECRET
+  if (!clientKey || !clientSecret) return null
+
+  try {
+    const tokenRes = await fetch('https://open.tiktokapis.com/v2/oauth/token/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_key: clientKey,
+        client_secret: clientSecret,
+        code,
+        grant_type: 'authorization_code',
+        redirect_uri: redirectUri,
+      }),
+    })
+    const tokenData = await tokenRes.json()
+    if (!tokenData.access_token) return null
+
+    const userRes = await fetch(
+      'https://open.tiktokapis.com/v2/user/info/?fields=open_id,avatar_url,display_name,username',
+      { headers: { Authorization: `Bearer ${tokenData.access_token}` } },
+    )
+    const userData = await userRes.json()
+    const user = userData.data?.user
+    if (!user) return null
+
+    return {
+      id: user.open_id || user.id || '',
+      username: user.username || '',
+      displayName: user.display_name || '',
+      avatarUrl: user.avatar_url || '',
+    }
+  } catch {
+    return null
+  }
+}
+
 export default function TikTokCallback() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
@@ -40,25 +93,17 @@ export default function TikTokCallback() {
       import.meta.env.VITE_TIKTOK_REDIRECT_URI ||
       `${window.location.origin}/auth/tiktok/callback`
 
-    // Try to fetch real user data from API (works on Vercel)
-    fetch('/api/tiktok/exchange', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code, redirectUri }),
-    })
-      .then((res) => res.json())
-      .then((data: TikTokUser & { error?: string }) => {
-        if (data.error) {
-          // API failed — fallback to demo mock data
-          storeTikTokAuth(code)
+    exchangeCode(code, redirectUri)
+      .then((user) => {
+        if (user) {
+          storeTikTokAuth(code, user)
         } else {
-          storeTikTokAuth(code, data)
+          storeTikTokAuth(code)
         }
         setStatus('success')
         setTimeout(() => navigate('/dashboard', { replace: true }), 1500)
       })
       .catch(() => {
-        // Network error — fallback to demo mock data
         storeTikTokAuth(code)
         setStatus('success')
         setTimeout(() => navigate('/dashboard', { replace: true }), 1500)

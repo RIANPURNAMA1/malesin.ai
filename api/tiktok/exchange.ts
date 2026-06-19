@@ -11,12 +11,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'Missing authorization code' })
   }
 
-  const clientKey = process.env.TIKTOK_CLIENT_KEY
-  const clientSecret = process.env.TIKTOK_CLIENT_SECRET
-
-  if (!clientKey || !clientSecret) {
-    return res.status(500).json({ error: 'TikTok credentials not configured' })
-  }
+  const clientKey = 'sbawxkqwkx6rts192o'
+  const clientSecret = 'COync1flsEt0OAiTyMsjsSrHMUCOv3D2'
 
   try {
     // 1. Exchange code for access_token
