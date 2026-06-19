@@ -1,7 +1,24 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
+import { getTikTokOAuthUrl } from '../lib/tiktok'
 
 export default function TikTokAuthorize() {
+  const navigate = useNavigate()
+  const hasClientKey = !!import.meta.env.VITE_TIKTOK_CLIENT_KEY
+
+  const handleAuthorize = () => {
+    if (hasClientKey) {
+      try {
+        const url = getTikTokOAuthUrl()
+        window.location.href = url
+      } catch {
+        navigate('/auth/tiktok/callback?code=demo_code_12345&state=demo')
+      }
+    } else {
+      navigate('/auth/tiktok/callback?code=demo_code_12345&state=demo')
+    }
+  }
+
   return (
     <>
       <Helmet>
@@ -21,14 +38,16 @@ export default function TikTokAuthorize() {
           </Link>
 
           <div className="bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden">
-            <div className="bg-amber-50 border-b border-amber-200 px-6 py-3 flex items-center gap-2">
-              <span className="text-xs font-semibold text-amber-700 bg-amber-200 px-2 py-0.5 rounded uppercase tracking-wide">
-                Demo Environment
-              </span>
-              <span className="text-xs text-amber-600">
-                — This is a simulated authorization for testing purposes
-              </span>
-            </div>
+            {!hasClientKey && (
+              <div className="bg-amber-50 border-b border-amber-200 px-6 py-3 flex items-center gap-2">
+                <span className="text-xs font-semibold text-amber-700 bg-amber-200 px-2 py-0.5 rounded uppercase tracking-wide">
+                  Demo Environment
+                </span>
+                <span className="text-xs text-amber-600">
+                  — simulated authorization for testing
+                </span>
+              </div>
+            )}
 
             <div className="p-8">
               <div className="flex items-center gap-3 mb-6">
@@ -67,12 +86,12 @@ export default function TikTokAuthorize() {
               </p>
 
               <div className="flex flex-col gap-3">
-                <Link
-                  to="/auth/tiktok/callback?code=demo_code_12345&state=demo"
+                <button
+                  onClick={handleAuthorize}
                   className="w-full text-center px-6 py-3 bg-black hover:bg-slate-800 text-white font-medium rounded-md transition-colors"
                 >
                   Authorize
-                </Link>
+                </button>
                 <Link
                   to="/login"
                   className="w-full text-center px-6 py-3 border border-slate-300 hover:bg-slate-50 text-slate-700 font-medium rounded-md transition-colors"
