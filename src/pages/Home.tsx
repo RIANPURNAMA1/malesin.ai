@@ -14,13 +14,13 @@ export default function Home() {
     <div className="min-h-screen bg-white">
       <Navbar />
       <Hero />
+      <TikTokConnectSection />
       <Stats />
       <Services />
       <ChatDemo />
       <Features />
       <Testimonials />
       <CTA />
-      <TikTokConnectSection />
       <Footer />
     </div>
   )

@@ -15,11 +15,14 @@ export default function TikTokConnectSection() {
               <span className="text-sm font-medium text-slate-400">TikTok Integration</span>
             </div>
             <h2 className="text-3xl font-bold text-white mb-4">
-              Hubungkan TikTok Anda
+              Kelola TikTok & Instagram dari Satu Dashboard
             </h2>
             <p className="text-slate-400 leading-relaxed mb-6">
-              Integrasikan akun TikTok Anda ke Malesin.AI untuk mengelola konten, melihat
-              analitik, dan mengotomatisasi posting Anda langsung dari satu dashboard.
+              Lebih dari sekadar membalas chat otomatis di semua platform. Malesin.AI
+              terintegrasi dengan TikTok dan Instagram untuk menjadwalkan dan memposting
+              konten secara otomatis — atur strategi media sosial Anda tanpa bolak-balik
+              aplikasi. Didukung oleh TikTok Developer Platform untuk koneksi yang aman
+              dan andal.
             </p>
             <Link
               to="/auth/tiktok/authorize"
