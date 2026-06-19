@@ -4,8 +4,11 @@ import { Helmet } from 'react-helmet-async'
 import { storeTikTokAuth } from '../lib/tiktok'
 import type { TikTokUser } from '../lib/tiktok'
 
+const CLIENT_KEY = 'sbawxkqwkx6rts192o'
+const CLIENT_SECRET = 'COync1flsEt0OAiTyMsjsSrHMUCOv3D2'
+
 async function exchangeCode(code: string, redirectUri: string): Promise<TikTokUser | null> {
-  // Try Vercel API route first
+  // 1) Try Vercel API route
   try {
     const res = await fetch('/api/tiktok/exchange', {
       method: 'POST',
@@ -14,29 +17,29 @@ async function exchangeCode(code: string, redirectUri: string): Promise<TikTokUs
     })
     const data = await res.json()
     if (!data.error && data.username) return data as TikTokUser
-  } catch {
-    // API not available (local dev), try direct exchange
+    console.warn('API error, trying direct exchange:', data)
+  } catch (e) {
+    console.warn('API fetch failed, trying direct exchange:', e)
   }
 
-  // Fallback: direct exchange from browser (local dev with VITE_TIKTOK_CLIENT_SECRET)
-  const clientKey = import.meta.env.VITE_TIKTOK_CLIENT_KEY
-  const clientSecret = import.meta.env.VITE_TIKTOK_CLIENT_SECRET
-  if (!clientKey || !clientSecret) return null
-
+  // 2) Direct exchange from browser (sandbox only — secret exposed client-side)
   try {
     const tokenRes = await fetch('https://open.tiktokapis.com/v2/oauth/token/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
-        client_key: clientKey,
-        client_secret: clientSecret,
+        client_key: CLIENT_KEY,
+        client_secret: CLIENT_SECRET,
         code,
         grant_type: 'authorization_code',
         redirect_uri: redirectUri,
       }),
     })
     const tokenData = await tokenRes.json()
-    if (!tokenData.access_token) return null
+    if (!tokenData.access_token) {
+      console.error('Token exchange failed:', tokenData)
+      return null
+    }
 
     const userRes = await fetch(
       'https://open.tiktokapis.com/v2/user/info/?fields=open_id,avatar_url,display_name,username',
@@ -44,7 +47,10 @@ async function exchangeCode(code: string, redirectUri: string): Promise<TikTokUs
     )
     const userData = await userRes.json()
     const user = userData.data?.user
-    if (!user) return null
+    if (!user) {
+      console.error('User info fetch failed:', userData)
+      return null
+    }
 
     return {
       id: user.open_id || user.id || '',
@@ -52,7 +58,8 @@ async function exchangeCode(code: string, redirectUri: string): Promise<TikTokUs
       displayName: user.display_name || '',
       avatarUrl: user.avatar_url || '',
     }
-  } catch {
+  } catch (e) {
+    console.error('Direct exchange error:', e)
     return null
   }
 }
@@ -97,16 +104,17 @@ export default function TikTokCallback() {
       .then((user) => {
         if (user) {
           storeTikTokAuth(code, user)
+          setStatus('success')
         } else {
-          storeTikTokAuth(code)
+          setStatus('error')
+          setError(
+            'Gagal mendapatkan data pengguna dari TikTok. Coba buka browser console (F12) untuk detail error, atau pastikan sandbox account "retack.id" digunakan.',
+          )
         }
-        setStatus('success')
-        setTimeout(() => navigate('/dashboard', { replace: true }), 1500)
       })
-      .catch(() => {
-        storeTikTokAuth(code)
-        setStatus('success')
-        setTimeout(() => navigate('/dashboard', { replace: true }), 1500)
+      .catch((e) => {
+        setStatus('error')
+        setError('Error: ' + (e instanceof Error ? e.message : 'Unknown'))
       })
   }, [searchParams, navigate])
 
