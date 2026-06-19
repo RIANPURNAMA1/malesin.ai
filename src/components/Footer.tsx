@@ -8,9 +8,9 @@ const footerLinks = {
     { label: 'Order Management', href: '#' },
   ],
   Legal: [
-    { label: 'Syarat & Ketentuan', href: '/terms' },
+    // { label: 'Syarat & Ketentuan', href: '/terms' },
     { label: 'Terms & Conditions', href: '/terms-of-service' },
-    { label: 'Kebijakan Privasi', href: '/privacy' },
+    // { label: 'Kebijakan Privasi', href: '/privacy' },
     { label: 'Privacy Policy', href: '/privacy-policy' },
     { label: 'Kebijakan Pengembalian', href: '/refund' },
   ],

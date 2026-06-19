@@ -7,6 +7,7 @@ import Features from '../components/Features'
 import Testimonials from '../components/Testimonials'
 import CTA from '../components/CTA'
 import Footer from '../components/Footer'
+import TikTokConnectSection from '../components/TikTokConnectSection'
 
 export default function Home() {
   return (
@@ -19,6 +20,7 @@ export default function Home() {
       <Features />
       <Testimonials />
       <CTA />
+      <TikTokConnectSection />
       <Footer />
     </div>
   )
