@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { storeTikTokAuth } from '../lib/tiktok'
+import type { TikTokUser } from '../lib/tiktok'
 
 export default function TikTokCallback() {
   const [searchParams] = useSearchParams()
@@ -35,13 +36,33 @@ export default function TikTokCallback() {
       return
     }
 
-    storeTikTokAuth(code)
+    const redirectUri =
+      import.meta.env.VITE_TIKTOK_REDIRECT_URI ||
+      `${window.location.origin}/auth/tiktok/callback`
 
-    setStatus('success')
-
-    setTimeout(() => {
-      navigate('/dashboard', { replace: true })
-    }, 1500)
+    // Try to fetch real user data from API (works on Vercel)
+    fetch('/api/tiktok/exchange', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, redirectUri }),
+    })
+      .then((res) => res.json())
+      .then((data: TikTokUser & { error?: string }) => {
+        if (data.error) {
+          // API failed — fallback to demo mock data
+          storeTikTokAuth(code)
+        } else {
+          storeTikTokAuth(code, data)
+        }
+        setStatus('success')
+        setTimeout(() => navigate('/dashboard', { replace: true }), 1500)
+      })
+      .catch(() => {
+        // Network error — fallback to demo mock data
+        storeTikTokAuth(code)
+        setStatus('success')
+        setTimeout(() => navigate('/dashboard', { replace: true }), 1500)
+      })
   }, [searchParams, navigate])
 
   return (

@@ -64,15 +64,15 @@ export function getTikTokUser(): TikTokUser | null {
   }
 }
 
-export function storeTikTokAuth(code: string): void {
+export function storeTikTokAuth(code: string, user?: TikTokUser): void {
   localStorage.setItem(AUTH_KEY, JSON.stringify({ code, timestamp: Date.now() }))
-  const mockUser: TikTokUser = {
+  const userData: TikTokUser = user ?? {
     id: '123456789',
     username: 'demo_creator',
     displayName: 'Demo Creator',
     avatarUrl: '',
   }
-  localStorage.setItem(USER_KEY, JSON.stringify(mockUser))
+  localStorage.setItem(USER_KEY, JSON.stringify(userData))
 }
 
 export function disconnectTikTok(): void {
