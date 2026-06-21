@@ -11,10 +11,26 @@ export interface TikTokUser {
   username: string
   displayName: string
   avatarUrl: string
+  bioDescription?: string
+  isVerified?: boolean
+  profileWebLink?: string
+  profileDeepLink?: string
+  followerCount?: number
+  followingCount?: number
+  likesCount?: number
+  videoCount?: number
+}
+
+export interface TikTokVideo {
+  id: string
+  title: string
+  coverUrl: string
+  createTime: string
 }
 
 const AUTH_KEY = 'malesin_tiktok_auth'
 const USER_KEY = 'malesin_tiktok_user'
+const VIDEOS_KEY = 'malesin_tiktok_videos'
 
 function getRedirectUri(): string {
   const envUri = import.meta.env.VITE_TIKTOK_REDIRECT_URI
@@ -35,19 +51,23 @@ export function getTikTokOAuthUrl(): string {
   }
 
   const redirectUri = getRedirectUri()
-  const scope = 'user.info.basic'
+  const scope = 'user.info.basic user.info.profile user.info.stats'
   const state = generateState()
   sessionStorage.setItem('tiktok_oauth_state', state)
 
-  const params = new URLSearchParams({
+  const params = {
     client_key: clientKey,
     redirect_uri: redirectUri,
     scope,
     state,
     response_type: 'code',
-  })
+  }
 
-  return `${TIKTOK_AUTH_BASE}?${params.toString()}`
+  const query = Object.entries(params)
+    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+    .join('&')
+
+  return `${TIKTOK_AUTH_BASE}?${query}`
 }
 
 export function isTikTokConnected(): boolean {
@@ -71,11 +91,32 @@ export function storeTikTokAuth(code: string, user?: TikTokUser): void {
     username: 'demo_creator',
     displayName: 'Demo Creator',
     avatarUrl: '',
+    bioDescription: 'Demo TikTok creator account',
+    isVerified: false,
+    followerCount: 0,
+    followingCount: 0,
+    likesCount: 0,
+    videoCount: 0,
   }
   localStorage.setItem(USER_KEY, JSON.stringify(userData))
+}
+
+export function getTikTokVideos(): TikTokVideo[] {
+  const data = localStorage.getItem(VIDEOS_KEY)
+  if (!data) return []
+  try {
+    return JSON.parse(data) as TikTokVideo[]
+  } catch {
+    return []
+  }
+}
+
+export function storeTikTokVideos(videos: TikTokVideo[]): void {
+  localStorage.setItem(VIDEOS_KEY, JSON.stringify(videos))
 }
 
 export function disconnectTikTok(): void {
   localStorage.removeItem(AUTH_KEY)
   localStorage.removeItem(USER_KEY)
+  localStorage.removeItem(VIDEOS_KEY)
 }

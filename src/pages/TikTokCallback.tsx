@@ -1,13 +1,34 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
-import { storeTikTokAuth } from '../lib/tiktok'
-import type { TikTokUser } from '../lib/tiktok'
+import { storeTikTokAuth, storeTikTokVideos } from '../lib/tiktok'
+import type { TikTokUser, TikTokVideo } from '../lib/tiktok'
 
 const CLIENT_KEY = 'sbawxkqwkx6rts192o'
 const CLIENT_SECRET = 'COync1flsEt0OAiTyMsjsSrHMUCOv3D2'
 
-async function exchangeCode(code: string, redirectUri: string): Promise<TikTokUser | null> {
+const USER_FIELDS = 'open_id,avatar_url,display_name,username,bio_description,is_verified,profile_web_link,profile_deep_link,follower_count,following_count,likes_count,video_count'
+
+function mapTikTokUser(user: Record<string, unknown>): TikTokUser {
+  return {
+    id: (user.open_id as string) || (user.id as string) || '',
+    username: (user.username as string) || '',
+    displayName: (user.display_name as string) || '',
+    avatarUrl: (user.avatar_url as string) || '',
+    bioDescription: (user.bio_description as string) || undefined,
+    isVerified: (user.is_verified as boolean) || undefined,
+    profileWebLink: (user.profile_web_link as string) || undefined,
+    profileDeepLink: (user.profile_deep_link as string) || undefined,
+    followerCount: (user.follower_count as number) ?? undefined,
+    followingCount: (user.following_count as number) ?? undefined,
+    likesCount: (user.likes_count as number) ?? undefined,
+    videoCount: (user.video_count as number) ?? undefined,
+  }
+}
+
+async function exchangeCode(code: string, redirectUri: string): Promise<{ user: TikTokUser | null; accessToken?: string }> {
+  let accessToken: string | undefined
+
   // 1) Try Vercel API route
   try {
     const res = await fetch('/api/tiktok/exchange', {
@@ -16,7 +37,7 @@ async function exchangeCode(code: string, redirectUri: string): Promise<TikTokUs
       body: JSON.stringify({ code, redirectUri }),
     })
     const data = await res.json()
-    if (!data.error && data.username) return data as TikTokUser
+    if (!data.error && data.username) return { user: data as TikTokUser }
     console.warn('API error, trying direct exchange:', data)
   } catch (e) {
     console.warn('API fetch failed, trying direct exchange:', e)
@@ -38,29 +59,54 @@ async function exchangeCode(code: string, redirectUri: string): Promise<TikTokUs
     const tokenData = await tokenRes.json()
     if (!tokenData.access_token) {
       console.error('Token exchange failed:', tokenData)
-      return null
+      return { user: null }
     }
 
+    accessToken = tokenData.access_token
+
     const userRes = await fetch(
-      'https://open.tiktokapis.com/v2/user/info/?fields=open_id,avatar_url,display_name,username',
-      { headers: { Authorization: `Bearer ${tokenData.access_token}` } },
+      `https://open.tiktokapis.com/v2/user/info/?fields=${USER_FIELDS}`,
+      { headers: { Authorization: `Bearer ${accessToken}` } },
     )
     const userData = await userRes.json()
     const user = userData.data?.user
     if (!user) {
       console.error('User info fetch failed:', userData)
-      return null
+      return { user: null }
     }
 
-    return {
-      id: user.open_id || user.id || '',
-      username: user.username || '',
-      displayName: user.display_name || '',
-      avatarUrl: user.avatar_url || '',
-    }
+    return { user: mapTikTokUser(user), accessToken }
   } catch (e) {
     console.error('Direct exchange error:', e)
-    return null
+    return { user: null }
+  }
+}
+
+async function fetchVideos(accessToken: string): Promise<TikTokVideo[]> {
+  try {
+    const res = await fetch('https://open.tiktokapis.com/v2/video/list/?max_count=10', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({}),
+    })
+    const data = await res.json()
+    const videos = data.data?.videos as Record<string, unknown>[] | undefined
+    if (!videos) return []
+    return videos.map((v: Record<string, unknown>) => {
+      const cover = v.cover as Record<string, unknown> | undefined
+      return {
+        id: (v.id as string) || '',
+        title: (v.title as string) || '',
+        coverUrl: (v.cover_image_url as string) || (cover?.url as string) || '',
+        createTime: (v.create_time as string) || '',
+      }
+    })
+  } catch (e) {
+    console.error('Failed to fetch videos:', e)
+    return []
   }
 }
 
@@ -101,9 +147,13 @@ export default function TikTokCallback() {
       `${window.location.origin}/auth/tiktok/callback`
 
     exchangeCode(code, redirectUri)
-      .then((user) => {
-        if (user) {
-          storeTikTokAuth(code, user)
+      .then(async (result) => {
+        if (result.user) {
+          storeTikTokAuth(code, result.user)
+          if (result.accessToken) {
+            const videos = await fetchVideos(result.accessToken)
+            storeTikTokVideos(videos)
+          }
           setStatus('success')
         } else {
           setStatus('error')
